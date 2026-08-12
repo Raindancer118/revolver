@@ -47,6 +47,17 @@
     </dependency>
   </dependencies>
 
+  <distributionManagement>
+    <repository>
+      <id>packages-releases</id>
+      <url>https://packages.tstieh.de/releases</url>
+    </repository>
+    <snapshotRepository>
+      <id>packages-snapshots</id>
+      <url>https://packages.tstieh.de/snapshots</url>
+    </snapshotRepository>
+  </distributionManagement>
+
   <build>
     <plugins>
       <plugin>

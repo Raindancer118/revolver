@@ -2,3 +2,5 @@
 .drum-state.json
 *.tmp
 Revolver/java/target/
+/Project.md
+/.idea/

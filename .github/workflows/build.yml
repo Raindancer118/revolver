@@ -1,0 +1,60 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+    paths: ['Revolver/java/**']
+  pull_request:
+    branches: [main]
+    paths: ['Revolver/java/**']
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: Revolver/java
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          cache-dependency-path: Revolver/java/pom.xml
+          server-id: packages-releases
+          server-username: REPOSILITE_USERNAME
+          server-password: REPOSILITE_PASSWORD
+
+      - name: Build & test
+        run: mvn -B clean verify
+
+      # Only on a vX.Y.Z tag, and only once the tag has been checked against the pom — a mismatch
+      # means the wrong version would go up as if it were the tagged one, which is worse than not
+      # publishing at all. The registry is private and rejects redeploying an existing version, so a
+      # tag pushed twice fails loudly here instead of silently overwriting a published artifact.
+      - name: Check tag matches pom version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          version="$(mvn -B -q -Dexpression=project.version -DforceStdout help:evaluate)"
+          tag="${GITHUB_REF_NAME#v}"
+          if [ "$tag" != "$version" ]; then
+            echo "::error::tag v$tag does not match pom version $version"
+            exit 1
+          fi
+
+      - name: Publish to packages.tstieh.de
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          REPOSILITE_USERNAME: ci-deploy
+          REPOSILITE_PASSWORD: ${{ secrets.REPOSILITE_PASSWORD }}
+          # Reposilite's TLS termination trips a TLSv1.3/SNI handshake bug in Maven's HTTP transport
+          # (works fine with plain java.net.http.HttpClient or curl) — pin TLSv1.2.
+          MAVEN_OPTS: -Djdk.tls.client.protocols=TLSv1.2
+        run: mvn --batch-mode --no-transfer-progress -DskipTests deploy

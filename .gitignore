@@ -1,2 +1,4 @@
 .trommelzustand.json
+.drum-state.json
 *.tmp
+Revolver/java/target/
